@@ -16,6 +16,7 @@ var curveFromString map[string]tls.CurveID
 var cipherSuiteFromString map[string]*tls.CipherSuite
 var cipherSuiteFromID map[uint16]*tls.CipherSuite
 var versionFromString map[string]Version
+var clientAuthTypeFromString map[string]tls.ClientAuthType
 
 func CurveFromString(name string) (tls.CurveID, error) {
 	value, ok := curveFromString[name]
@@ -70,6 +71,22 @@ func VersionFromString(name string) (Version, error) {
 	return value, nil
 }
 
+var ClientAuthTypes = []tls.ClientAuthType{
+	tls.NoClientCert,
+	tls.RequestClientCert,
+	tls.RequireAnyClientCert,
+	tls.VerifyClientCertIfGiven,
+	tls.RequireAndVerifyClientCert,
+}
+
+func ClientAuthTypeFromString(name string) (tls.ClientAuthType, error) {
+	value, ok := clientAuthTypeFromString[name]
+	if !ok {
+		return 0, errors.New("unsupported client authentication type")
+	}
+	return value, nil
+}
+
 func init() {
 	curveFromString = make(map[string]tls.CurveID)
 	for _, c := range Curves {
@@ -89,5 +106,10 @@ func init() {
 	versionFromString = make(map[string]Version)
 	for _, c := range Versions {
 		versionFromString[c.String()] = c
+	}
+
+	clientAuthTypeFromString = make(map[string]tls.ClientAuthType)
+	for _, c := range ClientAuthTypes {
+		clientAuthTypeFromString[c.String()] = c
 	}
 }

@@ -114,6 +114,10 @@ func main() {
 		fmt.Sprintf("Preferred curve [%s]", strings.Join(curveNames(), ", ")))
 	var cipherSuites cipherSuiteFlags
 	flag.Var(&cipherSuites, "cipher", "Preferred cipher suite")
+	var certFile string
+	flag.StringVar(&certFile, "certfile", "", "Certificate file")
+	var keyFile string
+	flag.StringVar(&keyFile, "keyfile", "", "Key file path")
 	var caFile string
 	flag.StringVar(&caFile, "cafile", "", "CA certificate file")
 	var serverName string
@@ -127,6 +131,24 @@ func main() {
 			fmt.Printf("%s\n", c.Name)
 		}
 		return
+	}
+
+	certs := make([]tls.Certificate, 1)
+	if certFile != "" || keyFile != "" {
+		if certFile == "" {
+			log.Fatal("supply certificate file with --certfile")
+		}
+
+		if keyFile == "" {
+			log.Fatal("supply key file with --keyfile")
+		}
+
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		certs = append(certs, cert)
 	}
 
 	rootCAs, err := x509.SystemCertPool()
@@ -183,6 +205,7 @@ func main() {
 		CipherSuites:     cipherSuiteIDs,
 		CurvePreferences: curveIDs,
 		RootCAs:          rootCAs,
+		Certificates:     certs,
 		ServerName:       serverName,
 	}
 
