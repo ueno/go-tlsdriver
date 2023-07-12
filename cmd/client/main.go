@@ -193,6 +193,18 @@ func main() {
 	}
 	defer conn.Close()
 
+	state := conn.ConnectionState()
+	cipherSuite, err := tlsdriver.CipherSuiteFromID(state.CipherSuite)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	log.Printf("Connected to %s with: %s [%s]\n",
+		conn.RemoteAddr().String(),
+		tlsdriver.Version(state.Version).String(),
+		cipherSuite.Name)
+
 	rx1 := make(chan []byte)
 	rx2 := make(chan []byte)
 	quit := make(chan bool)

@@ -14,6 +14,7 @@ var Curves = []tls.CurveID{
 
 var curveFromString map[string]tls.CurveID
 var cipherSuiteFromString map[string]*tls.CipherSuite
+var cipherSuiteFromID map[uint16]*tls.CipherSuite
 var versionFromString map[string]Version
 
 func CurveFromString(name string) (tls.CurveID, error) {
@@ -26,6 +27,14 @@ func CurveFromString(name string) (tls.CurveID, error) {
 
 func CipherSuiteFromString(name string) (*tls.CipherSuite, error) {
 	value, ok := cipherSuiteFromString[name]
+	if !ok {
+		return nil, errors.New("unsupported cipher suite")
+	}
+	return value, nil
+}
+
+func CipherSuiteFromID(id uint16) (*tls.CipherSuite, error) {
+	value, ok := cipherSuiteFromID[id]
 	if !ok {
 		return nil, errors.New("unsupported cipher suite")
 	}
@@ -70,6 +79,11 @@ func init() {
 	cipherSuiteFromString = make(map[string]*tls.CipherSuite)
 	for _, c := range tls.CipherSuites() {
 		cipherSuiteFromString[c.Name] = c
+	}
+
+	cipherSuiteFromID = make(map[uint16]*tls.CipherSuite)
+	for _, c := range tls.CipherSuites() {
+		cipherSuiteFromID[c.ID] = c
 	}
 
 	versionFromString = make(map[string]Version)

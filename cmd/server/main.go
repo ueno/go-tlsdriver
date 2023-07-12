@@ -54,6 +54,21 @@ func (f *cipherSuiteFlags) Set(name string) error {
 
 func echoHandler(conn net.Conn) {
 	defer conn.Close()
+
+	conn.(*tls.Conn).Handshake()
+	state := conn.(*tls.Conn).ConnectionState()
+
+	cipherSuite, err := tlsdriver.CipherSuiteFromID(state.CipherSuite)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	log.Printf("Accepted connection from %s with: %s [%s]\n",
+		conn.RemoteAddr().String(),
+		tlsdriver.Version(state.Version).String(),
+		cipherSuite.Name)
+
 	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 	for {
 		msg, err := rw.ReadBytes('\n')
@@ -190,6 +205,7 @@ func main() {
 				log.Println(err)
 				continue
 			}
+
 			go echoHandler(conn)
 		}
 	}
