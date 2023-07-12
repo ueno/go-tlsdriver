@@ -52,22 +52,31 @@ func (f *cipherSuiteFlags) Set(name string) error {
 	return nil
 }
 
-func echoHandler(conn net.Conn) {
-	defer conn.Close()
-
-	conn.(*tls.Conn).Handshake()
-	state := conn.(*tls.Conn).ConnectionState()
+func ensureHandshakeCompleted(conn *tls.Conn) error {
+	conn.Handshake()
+	state := conn.ConnectionState()
 
 	cipherSuite, err := tlsdriver.CipherSuiteFromID(state.CipherSuite)
 	if err != nil {
 		log.Println(err)
-		return
+		return err
 	}
 
 	log.Printf("Accepted connection from %s with: %s [%s]\n",
 		conn.RemoteAddr().String(),
 		tlsdriver.Version(state.Version).String(),
 		cipherSuite.Name)
+
+	return nil
+}
+
+func echoHandler(conn net.Conn) {
+	defer conn.Close()
+
+	if err := ensureHandshakeCompleted(conn.(*tls.Conn)); err != nil {
+		log.Println(err)
+		return
+	}
 
 	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 	for {
@@ -105,6 +114,29 @@ func versionNames() []string {
 		arr[i] = c.String()
 	}
 	return arr
+}
+
+type tlsListener struct {
+	inner net.Listener
+}
+
+func (l *tlsListener) Accept() (net.Conn, error) {
+	conn, err := l.inner.Accept()
+	if err == nil {
+		if err := ensureHandshakeCompleted(conn.(*tls.Conn)); err != nil {
+			log.Println(err)
+			return conn, err
+		}
+	}
+	return conn, err
+}
+
+func (l *tlsListener) Close() error {
+	return l.inner.Close()
+}
+
+func (l *tlsListener) Addr() net.Addr {
+	return l.inner.Addr()
 }
 
 func main() {
@@ -197,7 +229,9 @@ func main() {
 			Handler:   mux,
 			TLSConfig: config,
 		}
-		server.Serve(listener)
+		server.Serve(&tlsListener{
+			inner: listener,
+		})
 	} else {
 		for {
 			conn, err := listener.Accept()
