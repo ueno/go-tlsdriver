@@ -54,6 +54,17 @@ func (f *cipherSuiteFlags) Set(name string) error {
 	return nil
 }
 
+type filepathFlags []string
+
+func (f *filepathFlags) String() string {
+	return strings.Join(*f, ", ")
+}
+
+func (f *filepathFlags) Set(value string) error {
+	*f = append(*f, value)
+	return nil
+}
+
 func ensureHandshakeCompleted(conn *tls.Conn) error {
 	conn.Handshake()
 	state := conn.ConnectionState()
@@ -167,10 +178,10 @@ func main() {
 		fmt.Sprintf("Preferred curve [%s]", strings.Join(curveNames(), ", ")))
 	var cipherSuites cipherSuiteFlags
 	flag.Var(&cipherSuites, "cipher", "Preferred cipher suite")
-	var certFile string
-	flag.StringVar(&certFile, "certfile", "", "Certificate file")
-	var keyFile string
-	flag.StringVar(&keyFile, "keyfile", "", "Key file path")
+	var certFiles filepathFlags
+	flag.Var(&certFiles, "certfile", "Certificate file")
+	var keyFiles filepathFlags
+	flag.Var(&keyFiles, "keyfile", "Key file path")
 	var caFile string
 	flag.StringVar(&caFile, "cafile", "", "CA certificate file")
 	var clientAuthTypeString string
@@ -188,18 +199,22 @@ func main() {
 		return
 	}
 
-	if certFile == "" {
-		log.Fatal("supply certificate file with --certfile")
+	if len(certFiles) == 0 {
+		log.Fatal("supply certificate file and key file with --certfile/--keyfile")
 	}
 
-	if keyFile == "" {
-		log.Fatal("supply key file with --keyfile")
+	if len(certFiles) != len(keyFiles) {
+		log.Fatal("--certfile must have corresponding --keyfile")
 	}
 
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		log.Println(err)
-		return
+	certs := make([]tls.Certificate, len(certFiles))
+	for i := range(certFiles) {
+		cert, err := tls.LoadX509KeyPair(certFiles[i], keyFiles[i])
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		certs[i] = cert
 	}
 
 	rootCAs, err := x509.SystemCertPool()
@@ -257,7 +272,7 @@ func main() {
 		MaxVersion:       uint16(maxVersion),
 		CipherSuites:     cipherSuiteIDs,
 		CurvePreferences: curveIDs,
-		Certificates:     []tls.Certificate{cert},
+		Certificates:     certs,
 		ClientCAs:        rootCAs,
 		ClientAuth:       clientAuthType,
 	}
