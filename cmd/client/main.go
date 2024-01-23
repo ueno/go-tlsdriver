@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
@@ -167,12 +168,13 @@ func main() {
 		}
 		defer f.Close()
 
-		pem, err := io.ReadAll(f)
+		pem := new(bytes.Buffer)
+		_, err = io.Copy(pem, f)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		if !rootCAs.AppendCertsFromPEM(pem) {
+		if !rootCAs.AppendCertsFromPEM(pem.Bytes()) {
 			log.Println("unable to append CA certificate")
 			return
 		}
