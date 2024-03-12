@@ -146,8 +146,9 @@ func (l *tlsListener) Accept() (net.Conn, error) {
 	conn, err := l.inner.Accept()
 	if err == nil {
 		if err := ensureHandshakeCompleted(conn.(*tls.Conn)); err != nil {
+			// Print the error but not propagate it, as it
+			// causes http.Serve to close the listener
 			log.Println(err)
-			return conn, err
 		}
 	}
 	return conn, err
